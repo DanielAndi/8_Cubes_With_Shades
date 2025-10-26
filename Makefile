@@ -1,6 +1,6 @@
 # Compiler
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Iinclude
+CXXFLAGS = -std=c++17 -Wall -Iinclude $(shell pkg-config --cflags freetype2)
 
 # Source files
 SRC = main.cpp glad.c
@@ -8,7 +8,7 @@ OBJ = $(SRC:.cpp=.o)
 OBJ := $(OBJ:.c=.o)
 
 # Libraries
-LIBS = -lglfw -ldl -lGL -lX11 -lpthread -lXrandr -lXi
+LIBS = -lglfw -ldl -lGL -lX11 -lpthread -lXrandr -lXi -lfreetype
 
 # Output binary
 TARGET = lighting_demo
