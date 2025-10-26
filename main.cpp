@@ -30,9 +30,7 @@ const unsigned int SCR_WIDTH = 800;
 const unsigned int SCR_HEIGHT = 600;
 
 // camera - positioned to clearly view all cubes and text from an optimal angle
-Camera camera(glm::vec3(0.0f, 6.0f, 3.5f),
-              glm::vec3(0.0f, 1.0f, 0.0f),
-              -90.0f,  -75.0f);  // yaw, pitch - looking down at 15 degree angle
+Camera camera(glm::vec3(0.0f, 0.0f, 10.0f));
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
@@ -385,13 +383,14 @@ int main()
     glEnableVertexAttribArray(0);
 
     glm::vec3 cubePositions[8] = {
-        {-3.0f, 0.0f, -1.0f}, {-1.0f, 0.0f, -1.0f}, {1.0f, 0.0f, -1.0f}, {3.0f, 0.0f, -1.0f},
-        {-3.0f, 0.0f,  1.0f}, {-1.0f, 0.0f,  1.0f}, {1.0f, 0.0f,  1.0f}, {3.0f, 0.0f,  1.0f}
-    };
-    glm::vec3 lightPositions[8] = {
-        {-3.0f, 1.5f, -1.0f}, {-1.0f, 1.5f, -1.0f}, {1.0f, 1.5f, -1.0f}, {3.0f, 1.5f, -1.0f},
-        {-3.0f, 1.5f,  1.0f}, {-1.0f, 1.5f,  1.0f}, {1.0f, 1.5f,  1.0f}, {3.0f, 1.5f,  1.0f}
-    };
+{-3.0f, 0.0f, -1.0f}, {-1.0f, 0.0f, -1.0f}, {1.0f, 0.0f, -1.0f}, {3.0f, 0.0f, -1.0f},
+{-3.0f, -2.0f, -1.0f}, {-1.0f, -2.0f, -1.0f}, {1.0f, -2.0f, -1.0f}, {3.0f, -2.0f, -1.0f}
+};
+glm::vec3 lightPositions[8] = {
+{-3.0f, 0.0f, 1.0f}, {-1.0f, 0.0f, 1.0f}, {1.0f, 0.0f, 1.0f}, {3.0f, 0.0f, 1.0f},
+{-3.0f, -2.0f, 1.0f}, {-1.0f, -2.0f, 1.0f}, {1.0f, -2.0f, 1.0f}, {3.0f, -2.0f, 1.0f}
+};
+
     
     // Shininess values matching the reference image
     float shininessValues[8] = {2.0f, 4.0f, 8.0f, 16.0f, 32.0f, 64.0f, 128.0f, 256.0f};
