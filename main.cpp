@@ -443,8 +443,8 @@ int main()
 {-3.0f, -2.0f, -1.0f}, {-1.0f, -2.0f, -1.0f}, {1.0f, -2.0f, -1.0f}, {3.0f, -2.0f, -1.0f}
 };
 glm::vec3 lightPositions[8] = {
-{-3.0f, 0.0f, 1.0f}, {-1.0f, 0.0f, 1.0f}, {1.0f, 0.0f, 1.0f}, {3.0f, 0.0f, 1.0f},
-{-3.0f, -2.0f, 1.0f}, {-1.0f, -2.0f, 1.0f}, {1.0f, -2.0f, 1.0f}, {3.0f, -2.0f, 1.0f}
+{-3.0f, 0.0f, 10.0f}, {-1.0f, 0.0f, 10.0f}, {1.0f, 0.0f, 10.0f}, {3.0f, 0.0f, 10.0f},
+{-3.0f, -2.0f, 10.0f}, {-1.0f, -2.0f, 10.0f}, {1.0f, -2.0f, 10.0f}, {3.0f, -2.0f, 10.0f}
 };
 
     
@@ -488,11 +488,19 @@ if (focus == -1) {
         if (dim < 0.3f) dim = 0.3f;
 
         lightingShader.use();
-        lightingShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
-        lightingShader.setVec3("lightColor", dim, dim, dim);
-        lightingShader.setVec3("lightPos", lightPositions[i]);
-        lightingShader.setVec3("viewPos", camera.Position);
-        lightingShader.setFloat("shininess", shininessValues[i]);
+lightingShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
+
+// Dim only the top row lights (indices 0–3)
+float brightnessScale = (i < 4) ? 0.7f : 1.0f;  // top row 40% brightness
+
+glm::vec3 adjustedLightColor = glm::vec3(dim * brightnessScale);
+lightingShader.setVec3("lightColor", adjustedLightColor);
+
+// Send other uniforms as usual
+lightingShader.setVec3("lightPos", lightPositions[i]);
+lightingShader.setVec3("viewPos", camera.Position);
+lightingShader.setFloat("shininess", shininessValues[i]);
+
         lightingShader.setMat4("projection", projection);
         lightingShader.setMat4("view", view);
 
@@ -522,7 +530,7 @@ if (focus == -1) {
     // === Focus mode: show only selected cube ===
     int i = focus;
     glm::vec3 target = cubePositions[i];
-    camera.Position = target + glm::vec3(0.0f, 0.0f, 2.0f);
+    camera.Position = target + glm::vec3(0.0f, 0.0f, 3.0f);
 
     lightingShader.use();
     lightingShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);

@@ -12,23 +12,28 @@ uniform float shininess;
 
 void main()
 {
-    // Ambient lighting
-    float ambientStrength = 0.1;
+    // --- Light attenuation ---
+    float distance = length(lightPos - FragPos);
+    float attenuation = 1.0 / (1.0 + 0.02 * distance + 0.001 * distance * distance);
+
+    // --- Ambient ---
+    float ambientStrength = 0.15;
     vec3 ambient = ambientStrength * lightColor;
-    
-    // Diffuse lighting
+
+    // --- Diffuse ---
     vec3 norm = normalize(Normal);
     vec3 lightDir = normalize(lightPos - FragPos);
     float diff = max(dot(norm, lightDir), 0.0);
     vec3 diffuse = diff * lightColor;
 
-    // Specular lighting
-    float specularStrength = 0.5;
+    // --- Specular ---
+    float specularStrength = 1.0;
     vec3 viewDir = normalize(viewPos - FragPos);
     vec3 reflectDir = reflect(-lightDir, norm);
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
-    vec3 specular = specularStrength * spec * lightColor;  
+    vec3 specular = specularStrength * spec * lightColor;
 
-    vec3 result = (ambient + diffuse + specular) * objectColor;
+    // --- Combine (keep specular stronger at distance) ---
+    vec3 result = ((ambient + diffuse) * attenuation + specular) * objectColor;
     FragColor = vec4(result, 1.0);
 }
