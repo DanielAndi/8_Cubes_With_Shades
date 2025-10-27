@@ -472,6 +472,35 @@ std::cout << "Starting render loop..." << std::endl;
 
         processInput(window);
 
+            // Track current target zoom index (-1 means no zoom)
+static int targetIndex = -1;
+
+// Check for key presses 1–8 to select cube
+if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) targetIndex = 0;
+if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS) targetIndex = 1;
+if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS) targetIndex = 2;
+if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS) targetIndex = 3;
+if (glfwGetKey(window, GLFW_KEY_5) == GLFW_PRESS) targetIndex = 4;
+if (glfwGetKey(window, GLFW_KEY_6) == GLFW_PRESS) targetIndex = 5;
+if (glfwGetKey(window, GLFW_KEY_7) == GLFW_PRESS) targetIndex = 6;
+if (glfwGetKey(window, GLFW_KEY_8) == GLFW_PRESS) targetIndex = 7;
+
+// Reset view (back to default camera position)
+if (glfwGetKey(window, GLFW_KEY_0) == GLFW_PRESS) targetIndex = -1;
+
+// Handle smooth zoom motion
+glm::vec3 targetPos = camera.Position;
+if (targetIndex >= 0) {
+    glm::vec3 cubePos = cubePositions[targetIndex];
+    glm::vec3 direction = glm::normalize(cubePos - camera.Position);
+    float desiredDistance = 3.0f; // how close to zoom
+    targetPos = cubePos - direction * desiredDistance;
+}
+
+// Interpolate position for smooth zoom
+camera.Position = glm::mix(camera.Position, targetPos, deltaTime * 3.0f);
+
+
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -491,15 +520,44 @@ if (focus == -1) {
 lightingShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
 
 // Dim only the top row lights (indices 0–3)
-float brightnessScale = (i < 4) ? 0.7f : 1.0f;  // top row 40% brightness
+float brightnessScale;
+
+// First two cubes (indices 0 and 1 → shininess 2, 4)
+if (i < 2) {
+    brightnessScale = 0.5f; // dimmest
+}
+// Next two cubes (indices 2 and 3 → shininess 8, 16)
+else if (i < 4) {
+    brightnessScale = 0.5f; // slightly brighter
+}
+// Bottom row (indices 4–7 → shininess 32–256)
+else {
+    brightnessScale = 1.0f; // normal brightness
+}
 
 glm::vec3 adjustedLightColor = glm::vec3(dim * brightnessScale);
 lightingShader.setVec3("lightColor", adjustedLightColor);
 
+
 // Send other uniforms as usual
 lightingShader.setVec3("lightPos", lightPositions[i]);
 lightingShader.setVec3("viewPos", camera.Position);
+// Adjust specular strength based on shininess
+float specularStrength = 0.5f;  // default
+if (shininessValues[i] == 2.0f)  specularStrength = 0.15f;
+else if (shininessValues[i] == 4.0f) specularStrength = 0.25f;
+
 lightingShader.setFloat("shininess", shininessValues[i]);
+lightingShader.setFloat("specularStrength", specularStrength);
+
+// Tone down overly warm (yellowish) reflections for shininess 2 and 4
+glm::vec3 baseColor = glm::vec3(1.0f, 0.5f, 0.31f); // same as your objectColor
+if (shininessValues[i] == 2.0f || shininessValues[i] == 4.0f) {
+    // reduce the red and green slightly to neutralize yellow highlights
+    baseColor = glm::vec3(0.9f, 0.4f, 0.3f);
+}
+lightingShader.setVec3("objectColor", baseColor);
+
 
         lightingShader.setMat4("projection", projection);
         lightingShader.setMat4("view", view);

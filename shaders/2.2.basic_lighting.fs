@@ -31,6 +31,9 @@ void main()
     vec3 viewDir = normalize(viewPos - FragPos);
     vec3 reflectDir = reflect(-lightDir, norm);
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
+if (shininess <= 4.0)
+    spec = min(spec, 0.6); // cap highlight strength for rough surfaces
+
     vec3 specular = specularStrength * spec * lightColor;
 
     // --- Combine (keep specular stronger at distance) ---
