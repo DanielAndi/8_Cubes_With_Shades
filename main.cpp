@@ -1,5 +1,7 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
+#include <atomic>
+#include <thread>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -33,6 +35,22 @@ const unsigned int SCR_HEIGHT = 600;
 Camera camera(glm::vec3(0.0f, 0.0f, 10.0f));
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
+
+// === New globals for interactive focus mode ===
+std::atomic<int> g_focusIndex{-1}; // -1 means show all cubes
+std::atomic<bool> g_keepReading{true};
+
+// Shininess list for mapping user input
+static const float kShininess[8] = {2.f, 4.f, 8.f, 16.f, 32.f, 64.f, 128.f, 256.f};
+
+// Helper: map shininess value to cube index
+int findShininessIndex(int val) {
+    for (int i = 0; i < 8; ++i)
+        if ((int)kShininess[i] == val)
+            return i;
+    return -1;
+}
+
 
 // Proper FreeType-based text rendering system
 struct Character {
@@ -296,6 +314,44 @@ struct TextRenderer {
     }
 };
 
+// === Console input thread for interactive queries ===
+void consoleReader() {
+    std::cout
+        << "\n=== Controls (console) ===\n"
+        << "Enter shininess value {2,4,8,16,32,64,128,256} to focus.\n"
+        << "Enter 0 to show ALL cubes again.\n"
+        << "Enter q to quit the app.\n\n> " << std::flush;
+
+    std::string line;
+    while (g_keepReading && std::getline(std::cin, line)) {
+        if (line == "q" || line == "Q") {
+            std::cout << "Requested quit. Close the window to exit.\n> " << std::flush;
+            continue;
+        }
+
+        std::istringstream iss(line);
+        int v;
+        if (!(iss >> v)) {
+            std::cout << "Invalid input. Try again.\n> " << std::flush;
+            continue;
+        }
+
+        if (v == 0) {
+            g_focusIndex = -1;
+            std::cout << "Showing ALL cubes.\n> " << std::flush;
+            continue;
+        }
+
+        int idx = findShininessIndex(v);
+        if (idx >= 0) {
+            g_focusIndex = idx;
+            std::cout << "Focusing shininess " << v << ".\n> " << std::flush;
+        } else {
+            std::cout << "Unknown shininess. Use {2,4,8,16,32,64,128,256} or 0.\n> " << std::flush;
+        }
+    }
+}
+
 // Global text renderer instance
 TextRenderer* textRenderer = nullptr;
 
@@ -396,7 +452,14 @@ glm::vec3 lightPositions[8] = {
     float shininessValues[8] = {2.0f, 4.0f, 8.0f, 16.0f, 32.0f, 64.0f, 128.0f, 256.0f};
 
     // Initialize text renderer
-    textRenderer = new TextRenderer();
+    // Initialize text renderer
+textRenderer = new TextRenderer();
+
+// Start input thread (runs parallel to render loop)
+std::thread inputThread(consoleReader);
+
+std::cout << "Starting render loop..." << std::endl;
+
     
     std::cout << "Starting render loop..." << std::endl;
     std::cout << "Controls: WASD to move, Arrow keys to look around, ESC to exit" << std::endl;
@@ -416,46 +479,82 @@ glm::vec3 lightPositions[8] = {
             (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
         glm::mat4 view = camera.GetViewMatrix();
 
-        for (int i = 0; i < 8; ++i)
-        {
-            float dim = 1.0f - (i * 0.1f);
-            if (dim < 0.3f) dim = 0.3f;
+        int focus = g_focusIndex.load();
+if (focus == -1) {
+    // === Default: show all 8 cubes ===
+    for (int i = 0; i < 8; ++i)
+    {
+        float dim = 1.0f - (i * 0.1f);
+        if (dim < 0.3f) dim = 0.3f;
 
-            lightingShader.use();
-            lightingShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
-            lightingShader.setVec3("lightColor", dim, dim, dim);
-            lightingShader.setVec3("lightPos", lightPositions[i]);
-            lightingShader.setVec3("viewPos", camera.Position);
-            lightingShader.setFloat("shininess", shininessValues[i]);
-            lightingShader.setMat4("projection", projection);
-            lightingShader.setMat4("view", view);
+        lightingShader.use();
+        lightingShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
+        lightingShader.setVec3("lightColor", dim, dim, dim);
+        lightingShader.setVec3("lightPos", lightPositions[i]);
+        lightingShader.setVec3("viewPos", camera.Position);
+        lightingShader.setFloat("shininess", shininessValues[i]);
+        lightingShader.setMat4("projection", projection);
+        lightingShader.setMat4("view", view);
 
-            glm::mat4 model = glm::mat4(1.0f);
-            model = glm::translate(model, cubePositions[i]);
-            lightingShader.setMat4("model", model);
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, cubePositions[i]);
+        lightingShader.setMat4("model", model);
 
-            glBindVertexArray(cubeVAO);
-            glDrawArrays(GL_TRIANGLES, 0, 36);
+        glBindVertexArray(cubeVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
 
-            lightCubeShader.use();
-            lightCubeShader.setMat4("projection", projection);
-            lightCubeShader.setMat4("view", view);
-            model = glm::mat4(1.0f);
-            model = glm::translate(model, lightPositions[i]);
-            model = glm::scale(model, glm::vec3(0.2f));
-            lightCubeShader.setMat4("model", model);
+        lightCubeShader.use();
+        lightCubeShader.setMat4("projection", projection);
+        lightCubeShader.setMat4("view", view);
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, lightPositions[i]);
+        model = glm::scale(model, glm::vec3(0.2f));
+        lightCubeShader.setMat4("model", model);
 
-            glBindVertexArray(lightCubeVAO);
-            glDrawArrays(GL_TRIANGLES, 0, 36);
-        }
+        glBindVertexArray(lightCubeVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
 
-        // Render shininess values as text below each cube (after 3D scene)
-        for (int i = 0; i < 8; ++i)
-        {
-            std::ostringstream oss;
-            oss << static_cast<int>(shininessValues[i]);
-            renderText(oss.str(), cubePositions[i].x, cubePositions[i].y, cubePositions[i].z, 1.0f, projection, view);
-        }
+        std::ostringstream oss;
+        oss << static_cast<int>(shininessValues[i]);
+        renderText(oss.str(), cubePositions[i].x, cubePositions[i].y, cubePositions[i].z, 1.0f, projection, view);
+    }
+} else {
+    // === Focus mode: show only selected cube ===
+    int i = focus;
+    glm::vec3 target = cubePositions[i];
+    camera.Position = target + glm::vec3(0.0f, 0.0f, 2.0f);
+
+    lightingShader.use();
+    lightingShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
+    float dim = 1.0f - (i * 0.1f); if (dim < 0.3f) dim = 0.3f;
+    lightingShader.setVec3("lightColor", dim, dim, dim);
+    lightingShader.setVec3("lightPos", lightPositions[i]);
+    lightingShader.setVec3("viewPos", camera.Position);
+    lightingShader.setFloat("shininess", shininessValues[i]);
+    lightingShader.setMat4("projection", projection);
+    lightingShader.setMat4("view", view);
+
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::translate(model, cubePositions[i]);
+    lightingShader.setMat4("model", model);
+    glBindVertexArray(cubeVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    lightCubeShader.use();
+    lightCubeShader.setMat4("projection", projection);
+    lightCubeShader.setMat4("view", view);
+    model = glm::mat4(1.0f);
+    model = glm::translate(model, lightPositions[i]);
+    model = glm::scale(model, glm::vec3(0.2f));
+    lightCubeShader.setMat4("model", model);
+    glBindVertexArray(lightCubeVAO);
+    glDrawArrays(GL_TRIANGLES, 0, 36);
+
+    std::ostringstream oss;
+    oss << static_cast<int>(shininessValues[i]);
+    renderText(oss.str(), cubePositions[i].x, cubePositions[i].y, cubePositions[i].z, 1.5f, projection, view);
+}
+
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -467,7 +566,9 @@ glm::vec3 lightPositions[8] = {
     
     // Clean up text renderer
     delete textRenderer;
-    
+    g_keepReading = false;
+    if (inputThread.joinable()) inputThread.detach();
+
     glfwTerminate();
     return 0;
 }
